@@ -1,0 +1,17 @@
+{
+  // Explicit config so `wrangler deploy` does NOT try to auto-configure the
+  // project. Auto-configuration goes through the Cloudflare Vite plugin, which
+  // requires Vite >= 6; this project is on Vite 5 and does not need it — there
+  // is no server code, just static assets.
+  "name": "learn-transformer",
+  "compatibility_date": "2025-01-01",
+
+  "assets": {
+    "directory": "./dist",
+
+    // Client-side routing: /dashboard and /lesson/:slug exist only in React
+    // Router, not on disk. Without this, loading one directly (or refreshing)
+    // returns 404 instead of the app.
+    "not_found_handling": "single-page-application"
+  }
+}
