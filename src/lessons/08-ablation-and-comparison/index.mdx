@@ -1,0 +1,107 @@
+import ModelComparison from '../../components/viz/comparison/ModelComparison'
+import MilestoneCard from '../../components/ui/MilestoneCard'
+import QuizCheckpoint from '../../components/ui/QuizCheckpoint'
+
+You can now build a Transformer. This lesson asks the harder question: **how do you know it is
+any good?** The answer is not "it reached 89%" — it is "89% compared to what, and which parts
+actually earned that number?"
+
+## Two experiments that matter
+
+- **Baseline comparison** — does the fancy architecture beat simpler ones on the same task, with
+  the same budget?
+- **Ablation** — remove one component and re-measure. Whatever the accuracy drops by is that
+  component's real contribution.
+
+Both are only meaningful if everything *else* is held fixed. This repo shares the embedding
+dimension, dropout, optimizer, schedule, data split, and random seed across all runs, so the
+differences below are attributable to architecture rather than tuning luck.
+
+<ModelComparison />
+
+## Sitting with the uncomfortable result
+
+Two findings above are worth more than any tidy success story.
+
+**AvgEmbedding gets close.** A model that just averages word embeddings — no attention, no
+sequence modelling, no position information whatsoever — lands within a couple of points of the
+Transformer. That is not a broken experiment. AG News topic classification is close to a
+bag-of-words problem: the presence of "stocks" and "earnings" signals Business regardless of
+arrangement. A strong simple baseline is telling you something true about the *task*.
+
+**Removing positional encoding barely hurts.** The ablation shows a fraction of a percentage
+point between `none` and `learned`. For a task where word order carries little signal, the
+position information has almost nothing to contribute. The original paper found sinusoidal and
+learned encodings "nearly identical" to each other; this repo finds that on this task, *no*
+encoding is nearly identical to both.
+
+The correct conclusion is not "positional encoding is useless." It is that **this benchmark
+cannot measure it.** Order matters enormously for translation, generation, and inference — tasks
+where "dog bites man" and "man bites dog" must produce different outputs. Choosing an evaluation
+that cannot detect the thing you are studying is one of the most common mistakes in applied ML,
+and seeing it in your own results is worth more than reading about it.
+
+<MilestoneCard lessonId="ablation-and-comparison" milestoneId="interpret" title="Interpret an unflattering result">
+  Using the ablation view, state the accuracy gap between `none` and `learned`, then write down
+  one task where you would expect that gap to be dramatically larger — and why.
+</MilestoneCard>
+
+## Reading the confusion matrix
+
+Aggregate accuracy hides structure. The confusion matrix view shows *which* mistakes happen, and
+the dominant one here is Business ↔ Sci/Tech — a story about a tech company's earnings genuinely
+belongs to both categories. That is label ambiguity in the dataset, not a modelling failure, and
+no amount of architecture work will drive it to zero.
+
+This is why macro F1 sits alongside accuracy in the results. Accuracy can be propped up by
+performing well on easy, frequent classes; macro F1 averages per-class F1 equally, so a class the
+model handles badly cannot hide behind the others.
+
+<MilestoneCard lessonId="ablation-and-comparison" milestoneId="confusion" title="Find the model's weakest class">
+  Open the confusion matrix, pick any encoding variant, and identify which true class has the most
+  off-diagonal mass. Check whether the same pair confuses every variant.
+</MilestoneCard>
+
+## What a fair comparison requires
+
+Before believing any result like the ones above:
+
+- **Same data split and seed** — a lucky split can move accuracy more than an architecture change.
+- **Comparable parameter budgets** — beating a model with 10× the parameters proves little.
+- **Report the whole run, not the peak** — cherry-picking the best epoch across variants
+  manufactures differences that are not real.
+- **Never tune on test** — `train.py` selects the best checkpoint on *validation*; test is touched
+  once, at the end.
+
+## Repo grounding
+
+- `ablation.py` — trains the same architecture three times, varying only `pos_encoding`, then
+  writes `ablation_results.json` and the comparison plot.
+- `evaluate.py` — loads a checkpoint and produces the sklearn classification report and confusion
+  matrix behind the matrix view above.
+- `mini_transformer/baselines/models.py` — the three baselines: `AvgEmbedding`, `BiLSTM`, `TextCNN`.
+- `run_experiments.sh` — runs the whole grid so results are reproducible end to end.
+
+Everything on this page reads from the real JSON those scripts emitted; none of the numbers are
+illustrative.
+
+## Quiz checkpoint
+
+<QuizCheckpoint
+  index={1}
+  question="Your ablation shows removing a component costs almost no accuracy. Give two very different explanations, only one of which means the component is useless."
+  answer="(1) The component genuinely contributes nothing to this model. (2) The evaluation task cannot detect what the component does — as with positional encoding on bag-of-words-style topic classification, where word order carries little signal. Before concluding a component is useless, check that the benchmark is actually capable of measuring it."
+/>
+
+<QuizCheckpoint
+  index={2}
+  question="Why report macro F1 alongside accuracy?"
+  answer="Accuracy can be inflated by good performance on frequent or easy classes, masking a class the model handles poorly. Macro F1 averages per-class F1 equally, so weak performance on any single class pulls the number down and stays visible."
+/>
+
+## Trusted sources
+
+- ["Attention Is All You Need"](https://arxiv.org/abs/1706.03762), Table 3 — Vaswani et al., 2017 — the original sinusoidal-vs-learned ablation reporting "nearly identical results".
+- [Convolutional Neural Networks for Sentence Classification](https://arxiv.org/abs/1408.5882) — Kim, 2014 — the TextCNN baseline in this repo.
+- [Bag of Tricks for Efficient Text Classification](https://arxiv.org/abs/1607.01759) — Joulin et al., 2016 — fastText; the canonical demonstration that averaged-embedding models are startlingly strong on topic classification, which is exactly what the AvgEmbedding result above reproduces.
+- [scikit-learn classification metrics](https://scikit-learn.org/stable/modules/model_evaluation.html#classification-metrics) — definitions of macro vs. weighted averaging used by `evaluate.py`.

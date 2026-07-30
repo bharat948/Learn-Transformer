@@ -1,0 +1,124 @@
+import TrainingCurve from '../../components/viz/training/TrainingCurve'
+import CodeSandbox from '../../components/ui/CodeSandbox'
+import MilestoneCard from '../../components/ui/MilestoneCard'
+import QuizCheckpoint from '../../components/ui/QuizCheckpoint'
+
+The architecture is now complete — but an untrained Transformer outputs noise. Training is the
+loop that turns 2.9 million random numbers into a model that classifies news at ~89% accuracy.
+
+## The loop
+
+Every training step is the same five operations:
+
+1. **Forward** — run a batch through the model to get logits.
+2. **Loss** — measure how wrong those logits are against the true labels.
+3. **Backward** — compute the gradient of the loss with respect to every parameter.
+4. **Step** — nudge each parameter in the direction that lowers the loss.
+5. **Zero the gradients** — PyTorch *accumulates* gradients by default, so they must be cleared
+   before the next batch. Forgetting this is one of the most common bugs in the ecosystem, and it
+   fails silently: training still runs, just badly.
+
+## Cross-entropy loss
+
+For classification the loss is the negative log probability assigned to the correct class:
+
+```
+loss = -log( softmax(logits)[correct_class] )
+```
+
+The shape of this function is what makes it work. Predict the right class with 99% confidence and
+loss is ~0.01. Predict it with 1% confidence and loss is ~4.6. The penalty grows without bound as
+confidence in the correct answer approaches zero, so the model is pushed hard away from being
+confidently wrong.
+
+A useful sanity check: with 4 balanced classes, an untrained model should start near
+`-log(1/4) ≈ 1.386`. If your initial loss is far from that, something is wrong before training
+even begins.
+
+<MilestoneCard lessonId="training-loop" milestoneId="loss" title="Implement cross-entropy loss" auto>
+  Write the loss function that drives every gradient update in the repo.
+</MilestoneCard>
+
+<CodeSandbox exerciseId="crossEntropy" lessonId="training-loop" milestoneId="loss" />
+
+## The real training run
+
+This is the actual per-epoch history from `ablation_pe_sinusoidal.metrics.json` — the run that
+produced the checkpoint powering every visualization in this course.
+
+<TrainingCurve />
+
+## Reading the gap
+
+The distance between the train and validation curves is the single most informative thing on that
+chart:
+
+- **Both still falling** → keep training, the model is still learning.
+- **Train falling, validation flat or rising** → overfitting. The model is memorizing training
+  examples rather than learning generalizable patterns.
+- **Neither moving** → underfitting, a bad learning rate, or a bug.
+
+This repo counters overfitting three ways: **dropout** (0.1) randomly zeroes activations so the
+model cannot depend on any single pathway; **weight decay** (1e-4, via AdamW) penalizes large
+weights; and **gradient clipping** (1.0) caps the update size so one strange batch cannot blow up
+the parameters.
+
+It also keeps the *best* checkpoint by validation accuracy rather than the last one — so a final
+epoch that overfits does not cost you the good model you had at epoch 3.
+
+<MilestoneCard lessonId="training-loop" milestoneId="read-curve" title="Diagnose the training run">
+  Look at the accuracy view above. Identify the epoch where validation accuracy peaked, and note
+  whether the train/validation gap was widening by the end.
+</MilestoneCard>
+
+## Why AdamW
+
+Plain SGD applies the same learning rate to every parameter. Adam adapts per-parameter step sizes
+from running estimates of gradient mean and variance, which handles the wildly different gradient
+scales across embeddings, attention projections, and LayerNorm parameters.
+
+AdamW fixes a subtle flaw in Adam's weight decay: original Adam folded the decay into the gradient,
+where the adaptive scaling then distorted it. AdamW applies decay directly to the weights instead,
+decoupled from the gradient — which is why it is the default for essentially every modern
+Transformer.
+
+## Repo grounding
+
+This is `train.py`. The inner loop is:
+
+```python
+optimizer.zero_grad()
+logits = model(token_ids)
+loss = criterion(logits, labels)
+loss.backward()
+torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
+optimizer.step()
+```
+
+Around it sit the pieces that make a run reproducible and reportable: `set_seed` for determinism,
+per-epoch validation, best-checkpoint tracking, and a metrics JSON dump that includes the full
+history — which is precisely what the chart above reads.
+
+Config for this run: `d_model=128`, `num_heads=4`, `d_ff=256`, `num_layers=2`, `dropout=0.1`,
+`lr=3e-4`, `batch_size=64`, 4 epochs, 20k training examples.
+
+## Quiz checkpoint
+
+<QuizCheckpoint
+  index={1}
+  question="What should the loss be at the very start of training a balanced 4-class classifier, and why is that a useful check?"
+  answer="About -log(1/4) ≈ 1.386, because an untrained model should assign roughly equal probability to all four classes. If the initial loss is far from this, there is likely a bug in the data, labels, or model wiring — and you can catch it before wasting a training run."
+/>
+
+<QuizCheckpoint
+  index={2}
+  question="Training accuracy keeps climbing while validation accuracy has flattened. What is happening, and name two things in this repo that fight it?"
+  answer="The model is overfitting — memorizing the training split instead of learning generalizable patterns. This repo counters it with dropout (0.1), weight decay (1e-4 via AdamW), gradient clipping, and keeping the best-by-validation checkpoint rather than the final one."
+/>
+
+## Trusted sources
+
+- [Decoupled Weight Decay Regularization](https://arxiv.org/abs/1711.05101) — Loshchilov & Hutter, 2017 — the AdamW paper, explaining the decoupling fix described above.
+- [Adam: A Method for Stochastic Optimization](https://arxiv.org/abs/1412.6980) — Kingma & Ba, 2014 — the original adaptive-moment optimizer.
+- [PyTorch `CrossEntropyLoss` documentation](https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html) — the loss used in `train.py`, including its internal log-softmax.
+- [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](https://jmlr.org/papers/v15/srivastava14a.html) — Srivastava et al., 2014.

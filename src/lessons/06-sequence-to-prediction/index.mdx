@@ -1,0 +1,97 @@
+import ClassifierHeadFlow from '../../components/viz/classifier/ClassifierHeadFlow'
+import CodeSandbox from '../../components/ui/CodeSandbox'
+import MilestoneCard from '../../components/ui/MilestoneCard'
+import QuizCheckpoint from '../../components/ui/QuizCheckpoint'
+
+The encoder stack takes a sequence of token vectors and returns a sequence of token vectors. But
+classifying a headline needs **one** answer, not one per word. Something has to collapse the
+sequence — and that step is where a surprising number of subtle bugs live.
+
+## Pooling: sequence → single vector
+
+Three common choices:
+
+- **Mean-pool** — average every token vector. Simple, and every token contributes.
+- **Max-pool** — take the per-dimension maximum. Sharper, but discards magnitude information.
+- **`[CLS]` token** — prepend a special token and use only its final vector, as BERT does.
+  Requires the model to learn to funnel everything into that one position.
+
+This repo uses mean-pooling, which suits a task where topic evidence is spread across the whole
+headline rather than concentrated in one spot.
+
+## The padding trap
+
+Batching requires equal-length sequences, so short headlines get right-padded with `<pad>`. If
+you naively average all positions, those pad vectors drag the result toward zero — and the amount
+of distortion depends on how long the *other* sentences in the batch happened to be. The same
+input produces different outputs depending on its batchmates, which is a genuinely nasty bug.
+
+The fix is masked mean-pooling: sum only real positions, then divide by the count of real
+positions.
+
+<MilestoneCard lessonId="sequence-to-prediction" milestoneId="pool" title="Pool a sequence without letting padding corrupt it" auto>
+  Implement maskedMeanPool. The final test specifically catches dividing by the sequence length
+  instead of the real-token count.
+</MilestoneCard>
+
+<CodeSandbox exerciseId="maskedMeanPool" lessonId="sequence-to-prediction" milestoneId="pool" />
+
+## From pooled vector to prediction
+
+Once pooled, the rest is ordinary classification: one `Linear(d_model, num_classes)` produces
+raw **logits**, and softmax turns those into probabilities.
+
+Drag the padding slider below to see exactly how much damage unmasked pooling would do, then
+watch the real model's probabilities for each headline.
+
+<ClassifierHeadFlow />
+
+## Logits are not probabilities
+
+Worth internalizing, because it trips people up constantly:
+
+- **Logits** are unbounded real numbers. Only their *differences* matter — adding a constant to
+  every logit changes nothing after softmax.
+- **Probabilities** are what softmax produces: non-negative and summing to 1.
+
+During training the loss function consumes logits directly (PyTorch's `CrossEntropyLoss` applies
+log-softmax internally, which is numerically safer than doing it yourself). You only apply an
+explicit softmax when you actually want to *display* confidences — like the bars above.
+
+## Repo grounding
+
+This is `TransformerClassifier` in `mini_transformer/model/classifier.py`, whose `forward` is the
+whole architecture in seven lines:
+
+1. `make_padding_mask(token_ids, pad_idx)` — `True` where a real token sits
+2. `self.token_embedding(token_ids) * math.sqrt(self.d_model)` — the embedding scaling from the paper
+3. `self.pos_encoding(x)` — [lesson 3](/lesson/positional-encoding)
+4. `self.encoder(x, mask=mask)` — [lesson 5](/lesson/encoder-block), the stacked blocks
+5. `self._masked_mean_pool(hidden, token_ids)` — what you just implemented
+6. `self.classifier_dropout(pooled)`
+7. `self.classifier(pooled)` → logits
+
+Two details in there deserve a second look. The `sqrt(d_model)` scaling on embeddings keeps them
+comparable in magnitude to the positional encodings being added on top. And the padding mask is
+threaded all the way down into attention, where masked positions get `-inf` scores before softmax
+— so padding is neutralized in *two* separate places, not one.
+
+## Quiz checkpoint
+
+<QuizCheckpoint
+  index={1}
+  question="Why does masked mean-pooling divide by the number of real tokens rather than the sequence length?"
+  answer="Padded positions contribute nothing to the sum, so dividing by the full padded length would shrink every value by the fraction of padding present. Since padding depends on the longest sequence in the batch, the same input would produce different outputs in different batches."
+/>
+
+<QuizCheckpoint
+  index={2}
+  question="Adding 10 to every logit before softmax — what happens to the predicted probabilities?"
+  answer="Nothing. Softmax depends only on differences between logits; a constant added to all of them cancels in the numerator and denominator. This is exactly why subtracting the max is safe for numerical stability."
+/>
+
+## Trusted sources
+
+- ["Attention Is All You Need"](https://arxiv.org/abs/1706.03762), Section 3.4 — Vaswani et al., 2017 — the `sqrt(d_model)` embedding scaling.
+- [BERT: Pre-training of Deep Bidirectional Transformers](https://arxiv.org/abs/1810.04805) — Devlin et al., 2018 — the `[CLS]`-token pooling alternative described above.
+- [PyTorch `CrossEntropyLoss` documentation](https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html) — confirms the loss expects raw logits and applies log-softmax internally.

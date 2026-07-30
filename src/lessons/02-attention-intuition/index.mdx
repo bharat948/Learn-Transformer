@@ -1,0 +1,110 @@
+import AttentionHeatmap from '../../components/viz/attention/AttentionHeatmap'
+import QKVSandbox from '../../components/viz/attention/QKVSandbox'
+import CodeSandbox from '../../components/ui/CodeSandbox'
+import MilestoneCard from '../../components/ui/MilestoneCard'
+import QuizCheckpoint from '../../components/ui/QuizCheckpoint'
+
+Self-attention lets every token in a sequence look directly at every other token and decide how
+much to "borrow" from it when updating its own meaning. Concretely, each token's embedding is
+projected through three separate learned weight matrices into three vectors:
+
+- **Query (Q)** — what this token is "looking for" in the rest of the sequence.
+- **Key (K)** — what this token "advertises" about itself, i.e. what it can be matched against.
+- **Value (V)** — the actual content this token contributes if it turns out to be relevant.
+
+Relevance between token *i* and token *j* is the dot product of query *i* and key *j* — a
+larger dot product means stronger alignment. Because dot products over a *d_k*-dimensional
+space grow in magnitude as *d_k* grows, the raw scores are divided by √*d_k* before softmax —
+without this scaling, large-magnitude scores push softmax into a saturated regime with
+near-zero gradients almost everywhere. After scaling, softmax turns the scores into a
+probability distribution (the attention weights), and the output for token *i* is the weighted
+sum of every token's value vector:
+
+**Attention(Q, K, V) = softmax(QKᵀ / √d_k) V**
+
+## The Q/K/V mental model
+
+- **Query = "what am I looking for?"** — e.g. a pronoun like "it" implicitly asks "which
+  earlier noun do I refer to?"
+- **Key = "what do I contain / advertise?"** — e.g. a noun's key encodes "I'm a physical,
+  potentially-fatiguable entity," which is what makes it a good match for "it."
+- **Value = "what do I actually hand over if picked?"** — the information that gets blended
+  into the querying token's new representation once a match is found.
+
+Step by step, for a whole sequence: project all tokens into Q, K, V matrices → compute QKᵀ (an
+n×n matrix of raw relevance scores) → divide by √d_k → softmax row-wise → multiply by V to get,
+for every token, a context-aware blend of the tokens it attended to.
+
+## Analogy
+
+Think of it like a library / search-engine lookup happening simultaneously for every word in
+the sentence: your **query** is the search term you type in; every book's **key** is its
+title/tags; every book's **value** is its actual contents. The more your query matches a key,
+the more that book's content shapes the answer — except here, every word in the sentence is
+running its own search at the same time, and the "books" are the other words.
+
+## Worked example
+
+Sentence: **"The cat sat because it was tired."** When the model computes attention for
+**"it"**, "it" generates a query roughly encoding "I'm a pronoun — which earlier noun am I
+standing in for?" **"cat"**'s key strongly matches that query, while function words like "the,"
+"because," "was" produce weak matches — so "it" ends up with a high attention weight on "cat."
+
+Hover a token below to see its full attention row, and try the scaling slider to watch softmax
+saturate:
+
+<AttentionHeatmap />
+
+Now try the mechanism yourself — nudge the query and watch the weights and output update live:
+
+<QKVSandbox />
+
+## Build it
+
+Reading about softmax is not the same as writing it. Start with the function that turns raw
+scores into attention weights — including the max-subtraction trick that keeps it from
+overflowing.
+
+<MilestoneCard lessonId="attention-intuition" milestoneId="softmax" title="Implement softmax" auto>
+  The normalization step at the heart of attention. Watch the numerical-stability test.
+</MilestoneCard>
+
+<CodeSandbox exerciseId="softmax" lessonId="attention-intuition" milestoneId="softmax" />
+
+Now assemble the full operation: score every key against the query, scale by √d_k, normalize,
+and take the weighted sum of the values.
+
+<MilestoneCard lessonId="attention-intuition" milestoneId="attention-row" title="Compute one attention row" auto>
+  This is <code>scaled_dot_product_attention</code> for a single query — the core of the entire
+  architecture.
+</MilestoneCard>
+
+<CodeSandbox exerciseId="attentionRow" lessonId="attention-intuition" milestoneId="attention-row" />
+
+## Quiz checkpoint
+
+<QuizCheckpoint
+  index={1}
+  question="Why do we divide the raw QKᵀ scores by √d_k before applying softmax?"
+  answer="Because dot products over d_k dimensions have variance that grows with d_k; without scaling, scores can become large in magnitude and push softmax into a region with vanishingly small gradients, hurting learning. Dividing by √d_k keeps the score magnitudes roughly constant regardless of d_k."
+/>
+
+<QuizCheckpoint
+  index={2}
+  question="In the Q/K/V framework, which vector determines what information gets copied into the output once a token is deemed relevant — the query, the key, or the value?"
+  answer="The value vector. The query and key only determine how much attention a token pays to another token (the weight); the value is the actual content that gets blended into the output once that weight is applied."
+/>
+
+## Repo grounding note
+
+This lesson maps directly to `mini_transformer/model/attention.py` in this repo's PyTorch
+implementation, which computes exactly this formula — `scaled_dot_product_attention` with an
+explicit `/ math.sqrt(d_k)` scaling step before softmax. Multi-head attention (`MultiHeadAttention`
+in the same file) is reserved for a future lesson.
+
+## Trusted sources
+
+- [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) — Jay Alammar — the canonical visual walkthrough of self-attention.
+- [Understanding and Coding the Self-Attention Mechanism of LLMs From Scratch](https://sebastianraschka.com/blog/2023/self-attention-from-scratch.html) — Sebastian Raschka — a rigorous from-scratch numeric derivation.
+- [Attention in transformers, step-by-step](https://www.3blue1brown.com/lessons/attention) — 3Blue1Brown (Grant Sanderson).
+- ["Attention Is All You Need"](https://arxiv.org/abs/1706.03762), Section 3.2 — Vaswani et al., 2017 — the original source of the formula.

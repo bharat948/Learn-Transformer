@@ -1,0 +1,200 @@
+{
+  "results": {
+    "none": {
+      "test_acc": 0.887,
+      "macro_f1": 0.8861893947770672,
+      "best_val_acc": 0.886,
+      "num_params": 2897924
+    },
+    "sinusoidal": {
+      "test_acc": 0.88925,
+      "macro_f1": 0.889116992767319,
+      "best_val_acc": 0.8935,
+      "num_params": 2897924
+    },
+    "learned": {
+      "test_acc": 0.89325,
+      "macro_f1": 0.8921994680694502,
+      "best_val_acc": 0.884,
+      "num_params": 2906116
+    }
+  },
+  "histories": {
+    "none": [
+      {
+        "epoch": 1,
+        "train_loss": 0.6919,
+        "train_acc": 0.7327,
+        "val_loss": 0.4151,
+        "val_acc": 0.8635
+      },
+      {
+        "epoch": 2,
+        "train_loss": 0.2704,
+        "train_acc": 0.9092,
+        "val_loss": 0.3965,
+        "val_acc": 0.877
+      },
+      {
+        "epoch": 3,
+        "train_loss": 0.1573,
+        "train_acc": 0.9487,
+        "val_loss": 0.4238,
+        "val_acc": 0.886
+      },
+      {
+        "epoch": 4,
+        "train_loss": 0.096,
+        "train_acc": 0.9679,
+        "val_loss": 0.4938,
+        "val_acc": 0.881
+      }
+    ],
+    "sinusoidal": [
+      {
+        "epoch": 1,
+        "train_loss": 0.7405,
+        "train_acc": 0.7054,
+        "val_loss": 0.402,
+        "val_acc": 0.8655
+      },
+      {
+        "epoch": 2,
+        "train_loss": 0.2858,
+        "train_acc": 0.9028,
+        "val_loss": 0.3929,
+        "val_acc": 0.8735
+      },
+      {
+        "epoch": 3,
+        "train_loss": 0.175,
+        "train_acc": 0.9405,
+        "val_loss": 0.386,
+        "val_acc": 0.8935
+      },
+      {
+        "epoch": 4,
+        "train_loss": 0.1105,
+        "train_acc": 0.9623,
+        "val_loss": 0.4461,
+        "val_acc": 0.881
+      }
+    ],
+    "learned": [
+      {
+        "epoch": 1,
+        "train_loss": 0.7414,
+        "train_acc": 0.707,
+        "val_loss": 0.3964,
+        "val_acc": 0.8655
+      },
+      {
+        "epoch": 2,
+        "train_loss": 0.2856,
+        "train_acc": 0.9022,
+        "val_loss": 0.3608,
+        "val_acc": 0.8825
+      },
+      {
+        "epoch": 3,
+        "train_loss": 0.1722,
+        "train_acc": 0.9419,
+        "val_loss": 0.4008,
+        "val_acc": 0.884
+      },
+      {
+        "epoch": 4,
+        "train_loss": 0.1095,
+        "train_acc": 0.9632,
+        "val_loss": 0.4698,
+        "val_acc": 0.8785
+      }
+    ]
+  },
+  "confusionMatrices": {
+    "none": [
+      [
+        898,
+        28,
+        49,
+        22
+      ],
+      [
+        32,
+        978,
+        9,
+        5
+      ],
+      [
+        53,
+        11,
+        832,
+        103
+      ],
+      [
+        53,
+        19,
+        68,
+        840
+      ]
+    ],
+    "sinusoidal": [
+      [
+        899,
+        19,
+        53,
+        26
+      ],
+      [
+        54,
+        949,
+        10,
+        11
+      ],
+      [
+        44,
+        5,
+        842,
+        108
+      ],
+      [
+        46,
+        5,
+        62,
+        867
+      ]
+    ],
+    "learned": [
+      [
+        900,
+        29,
+        38,
+        30
+      ],
+      [
+        14,
+        995,
+        7,
+        8
+      ],
+      [
+        51,
+        20,
+        830,
+        98
+      ],
+      [
+        42,
+        16,
+        74,
+        848
+      ]
+    ]
+  },
+  "classNames": [
+    "World",
+    "Sports",
+    "Business",
+    "Sci/Tech"
+  ]
+}

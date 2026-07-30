@@ -1,0 +1,110 @@
+import EncoderBlockFlow from '../../components/viz/encoder/EncoderBlockFlow'
+import CodeSandbox from '../../components/ui/CodeSandbox'
+import MilestoneCard from '../../components/ui/MilestoneCard'
+import QuizCheckpoint from '../../components/ui/QuizCheckpoint'
+
+Attention alone is not a Transformer. Wrap it in three more pieces — a residual connection, layer
+normalization, and a position-wise feed-forward network — and you get the encoder block that
+stacks to build the real model.
+
+## The two sublayers
+
+An encoder layer contains exactly two sublayers, and each is wrapped identically:
+
+```
+x → self-attention → Add & Norm → feed-forward → Add & Norm → out
+```
+
+Written as the repo does it, that is `LayerNorm(x + Sublayer(x))` twice.
+
+### Residual connections
+
+Adding the input back to the sublayer output (`x + Sublayer(x)`) does two things:
+
+- The sublayer only has to learn a **correction** to its input, not a full replacement. Learning
+  "adjust this slightly" is a much easier optimization problem than learning "regenerate this
+  from scratch."
+- It creates a **gradient highway**. During backpropagation, gradient flows straight through the
+  addition to earlier layers without being repeatedly multiplied down — the same vanishing-gradient
+  problem you saw in the [RNN lesson](/lesson/rnn-lstm-recap), solved structurally instead of by gating.
+
+### Layer normalization
+
+LayerNorm rescales each token's vector to zero mean and unit variance **across its own features**.
+Unlike BatchNorm it does not look at other examples in the batch, which matters for variable-length
+sequences where batch statistics would be polluted by padding.
+
+Without it, activations drift in scale as layers stack, and deep stacks become untrainable.
+
+<MilestoneCard lessonId="encoder-block" milestoneId="addnorm" title="Implement Add & Norm" auto>
+  Write layerNorm and addNorm — the wrapper applied around both sublayers.
+</MilestoneCard>
+
+<CodeSandbox exerciseId="layerNorm" lessonId="encoder-block" milestoneId="addnorm" />
+
+### The feed-forward network
+
+After attention mixes information *across* tokens, the FFN processes each position
+**independently** — Linear → ReLU → Linear, typically expanding to a wider hidden dimension
+(`d_ff = 256` here, from `d_model = 128`) and projecting back.
+
+The division of labour is clean and worth memorizing:
+
+| Sublayer | Mixes across tokens? | Purpose |
+|---|---|---|
+| Self-attention | Yes | gather context from other positions |
+| Feed-forward | No | transform each position's representation |
+
+<MilestoneCard lessonId="encoder-block" milestoneId="ffn" title="Build the feed-forward block" auto>
+  Implement Linear → ReLU → Linear with explicit weight matrices.
+</MilestoneCard>
+
+<CodeSandbox exerciseId="feedForward" lessonId="encoder-block" milestoneId="ffn" />
+
+## Walk a vector through the block
+
+Step through all seven stages and watch a real 4-dimensional vector transform. Notice the two
+residual steps (highlighted) and how normalization pulls values back to a consistent scale
+afterward.
+
+<EncoderBlockFlow />
+
+## One subtlety worth catching
+
+The second Add & Norm adds the vector from **after** the attention sublayer — not the block's
+original input. Getting this wrong is a classic bug: the block still runs, still trains, and
+still produces plausible-looking numbers, but you have quietly built a different architecture.
+
+## Repo grounding
+
+Everything above is `mini_transformer/model/encoder.py`:
+
+- `PositionwiseFeedForward` — `nn.Sequential(Linear, ReLU, Dropout, Linear)`
+- `AddNorm` — `self.norm(x + self.dropout(sublayer_out))`
+- `EncoderLayer.forward` — four lines that match the four steps exactly
+- `TransformerEncoder` — an `nn.ModuleList` of `num_layers` identical blocks (2 in this repo)
+
+This repo uses **post-norm** (normalize after the residual add), as in the original paper. Many
+modern implementations use pre-norm (`x + Sublayer(LayerNorm(x))`) instead, which trains more
+stably at very large depths but needs a learning-rate warmup schedule to match post-norm quality
+at small ones.
+
+## Quiz checkpoint
+
+<QuizCheckpoint
+  index={1}
+  question="Which sublayer of an encoder block moves information between token positions, and which one does not?"
+  answer="Self-attention moves information between positions — it is the only place tokens see each other. The feed-forward network is applied independently to each position and never mixes across the sequence."
+/>
+
+<QuizCheckpoint
+  index={2}
+  question="Give two distinct reasons residual connections matter in a deep Transformer stack."
+  answer="(1) The sublayer only needs to learn a correction to its input rather than regenerate it, which is an easier optimization problem. (2) The addition gives gradients a direct path back through the network, avoiding the repeated multiplicative shrinkage that causes vanishing gradients in deep stacks."
+/>
+
+## Trusted sources
+
+- ["Attention Is All You Need"](https://arxiv.org/abs/1706.03762), Section 3.1 and 3.3 — Vaswani et al., 2017 — defines the sublayer structure, `LayerNorm(x + Sublayer(x))`, and the position-wise FFN.
+- [Layer Normalization](https://arxiv.org/abs/1607.06450) — Ba, Kiros & Hinton, 2016 — the original LayerNorm paper and why it suits variable-length sequence models better than BatchNorm.
+- [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) — Jay Alammar — the encoder-block diagrams this lesson's flow visualization is modelled on.

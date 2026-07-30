@@ -1,0 +1,127 @@
+import CodeSandbox from '../../components/ui/CodeSandbox'
+import MilestoneCard from '../../components/ui/MilestoneCard'
+import QuizCheckpoint from '../../components/ui/QuizCheckpoint'
+
+Every piece is now built. Softmax, scaled dot-product attention, head splitting, Add & Norm,
+the feed-forward block, masked pooling, cross-entropy. This lesson assembles them into a working
+encoder block and maps every line back to the PyTorch it mirrors.
+
+## Assemble the block
+
+The helpers you wrote in earlier lessons are provided below. Your job is the wiring — and the
+whole point of this exercise is how *short* it is. A Transformer encoder layer is four lines.
+
+<MilestoneCard lessonId="capstone" milestoneId="build" title="Build a complete encoder block" auto>
+  Wire self-attention → Add &amp; Norm → feed-forward → Add &amp; Norm. Watch the residual source
+  on the second Add &amp; Norm.
+</MilestoneCard>
+
+<CodeSandbox exerciseId="encoderBlock" lessonId="capstone" milestoneId="build" />
+
+## Concept → code map
+
+This is the whole course against the repo. Every row is something you implemented in JavaScript
+and can now read in PyTorch.
+
+| Concept | You built | Repo location |
+|---|---|---|
+| Softmax | `softmax` | `F.softmax` in `attention.py` |
+| Scaled dot-product attention | `attentionRow` | `scaled_dot_product_attention` |
+| Multi-head split/merge | `splitHeads` | `MultiHeadAttention._split_heads` / `_merge_heads` |
+| Positional encoding | `positionalEncoding` | `SinusoidalPositionalEncoding` in `positional.py` |
+| Residual + normalization | `addNorm` | `AddNorm` in `encoder.py` |
+| Position-wise FFN | `feedForward` | `PositionwiseFeedForward` |
+| One encoder layer | `encoderBlock` | `EncoderLayer.forward` |
+| Sequence → one vector | `maskedMeanPool` | `TransformerClassifier._masked_mean_pool` |
+| Classification loss | `crossEntropy` | `nn.CrossEntropyLoss` in `train.py` |
+
+The gap between your JavaScript and the repo's PyTorch is real but narrow: PyTorch batches over
+examples and heads simultaneously, runs on GPU, and computes gradients automatically. The *math*
+is what you already wrote.
+
+## The full forward pass
+
+Reading `TransformerClassifier.forward` top to bottom, you now know every step:
+
+```python
+mask = make_padding_mask(token_ids, self.pad_idx)      # lesson 6
+x = self.token_embedding(token_ids) * sqrt(d_model)     # lesson 6
+x = self.pos_encoding(x)                                # lesson 3
+hidden = self.encoder(x, mask=mask)                     # lessons 2, 4, 5
+pooled = self._masked_mean_pool(hidden, token_ids)      # lesson 6
+logits = self.classifier(self.classifier_dropout(pooled))
+```
+
+Six lines. Roughly 2.9 million parameters. ~89% accuracy on 4-way news classification.
+
+<MilestoneCard lessonId="capstone" milestoneId="trace" title="Trace a headline end to end">
+  Open <code>mini_transformer/model/classifier.py</code> alongside this page and follow one
+  headline through all six lines, naming the tensor shape at each step. Start with
+  <code>(batch, seq_len)</code> token IDs and end at <code>(batch, 4)</code> logits.
+</MilestoneCard>
+
+## Run it yourself
+
+The repo is the real deliverable. From the project root:
+
+```bash
+pip install -r requirements.txt
+
+# Train the Transformer you just built
+python train.py --model transformer --pos-encoding sinusoidal --run-name my_transformer
+
+# See per-class metrics and the confusion matrix
+python evaluate.py --checkpoint outputs/my_transformer.pt
+
+# Reproduce the positional-encoding ablation from lesson 8
+python ablation.py
+
+# Regenerate the artifacts powering this webapp
+python scripts/export_web_artifacts.py
+```
+
+That last command matters: every real attention map, training curve, and ablation number in this
+course was produced by it. Retrain the model and the visualizations follow your new checkpoints.
+
+<MilestoneCard lessonId="capstone" milestoneId="modify" title="Change something and measure it">
+  Train a variant — try <code>--num-heads 1</code>, <code>--num-layers 1</code>, or
+  <code>--d-model 64</code> — then run <code>evaluate.py</code> and compare against the numbers in
+  lesson 8. Form a hypothesis before you look at the result.
+</MilestoneCard>
+
+## Where to go next
+
+You have built an **encoder-only** Transformer — the BERT family's shape, suited to
+classification and representation tasks. The parts you have not built yet:
+
+- **Causal (masked) self-attention** — mask out future positions so a token can only attend
+  backwards. This single change turns an encoder into a generator.
+- **Cross-attention** — queries from one sequence, keys and values from another. The bridge in
+  encoder-decoder models like the original translation Transformer.
+- **Autoregressive decoding** — generate one token at a time, feeding each output back as input.
+  This is what makes GPT-style models work.
+- **Pre-training and fine-tuning** — train on a large unlabeled corpus with a self-supervised
+  objective, then adapt to a specific task with far less labeled data.
+
+Every one of these is a modification of machinery you now understand rather than something new.
+
+## Quiz checkpoint
+
+<QuizCheckpoint
+  index={1}
+  question="You have built an encoder-only Transformer. What single change to the attention mask converts it into the kind of model that can generate text?"
+  answer="Apply a causal mask — set attention scores to -inf for all positions after the current one, so each token can only attend to itself and earlier tokens. That makes the model autoregressive, letting it predict the next token without seeing the future."
+/>
+
+<QuizCheckpoint
+  index={2}
+  question="Name the two sublayers of the encoder block you just assembled, in order, and state what wraps each."
+  answer="Self-attention first, then the position-wise feed-forward network. Each is wrapped in a residual connection followed by layer normalization — LayerNorm(x + Sublayer(x)) — with the second residual coming from the post-attention vector, not the block's original input."
+/>
+
+## Trusted sources
+
+- ["Attention Is All You Need"](https://arxiv.org/abs/1706.03762) — Vaswani et al., 2017 — the architecture this repo implements from scratch.
+- [The Annotated Transformer](https://nlp.seas.harvard.edu/annotated-transformer/) — Harvard NLP — a line-by-line PyTorch implementation alongside the paper; the natural next read after this course.
+- [Let's build GPT: from scratch, in code, spelled out](https://www.youtube.com/watch?v=kCc8FmEb1nY) — Andrej Karpathy — builds the decoder-only side, covering the causal masking and autoregressive generation listed above.
+- [BERT: Pre-training of Deep Bidirectional Transformers](https://arxiv.org/abs/1810.04805) — Devlin et al., 2018 — the encoder-only lineage this repo's architecture belongs to.

@@ -1,0 +1,118 @@
+import RnnUnrollVisualizer from '../../components/viz/rnn/RnnUnrollVisualizer'
+import VanishingGradientChart from '../../components/viz/rnn/VanishingGradientChart'
+import MilestoneCard from '../../components/ui/MilestoneCard'
+import QuizCheckpoint from '../../components/ui/QuizCheckpoint'
+
+Before learning why Transformers work, it helps to understand how sequence data was modeled
+before them — RNNs and LSTMs — and precisely which of their limitations the Transformer's
+attention mechanism was designed to eliminate.
+
+## RNNs
+
+A Recurrent Neural Network processes a sequence one token at a time, carrying a **hidden
+state** forward like a running summary. At each timestep `t`, the same small network (the
+"cell") takes the current input `x_t` and the previous hidden state `h_{t-1}`, and produces a
+new hidden state `h_t = f(x_t, h_{t-1})`. Unrolled across a sentence, this looks like the same
+block of weights applied repeatedly, left to right, each step's output feeding the next step's
+input.
+
+## LSTMs
+
+Plain RNNs are bad at holding onto information over more than a few steps. The LSTM
+(Hochreiter & Schmidhuber, 1997) fixes this by splitting the recurrent state into two parts: a
+**hidden state** (like before) and a **cell state** — a separate pathway that acts like a
+conveyor belt running through the whole sequence, with only minor, gated modifications at each
+step. Three sigmoid gates control that belt:
+
+- **Forget gate** — decides what fraction of the old cell state to keep.
+- **Input gate** — decides what new information gets written onto the cell state.
+- **Output gate** — decides what part of the cell state gets exposed as the hidden state at
+  this step.
+
+Because the cell state is updated mostly by addition (gated pass-through) rather than by
+repeated multiplication through a nonlinearity, gradients can flow backward through many
+timesteps largely unattenuated — the mechanical reason LSTMs remember longer than vanilla
+RNNs.
+
+## Seq2seq and the context-vector bottleneck
+
+For tasks like translation, two RNNs/LSTMs were chained: an **encoder** reads the input
+sequence and compresses it into a single final hidden state (a "context vector"), and a
+**decoder** generates the output sequence from that one vector. This encoder-decoder pattern
+was the dominant NLP architecture right up until attention — and its single-vector bottleneck
+is exactly what attention mechanisms, and later Transformers, were invented to remove.
+
+## Why this matters for Transformers
+
+Three concrete limitations motivated the shift to attention-only architectures:
+
+1. **Strictly sequential computation.** `h_t` cannot be computed until `h_{t-1}` exists, so
+   RNNs can't be parallelized across the time dimension on a GPU.
+2. **Vanishing/exploding gradients.** Backpropagation through time multiplies gradients
+   repeatedly across timesteps; LSTM gating mitigates but does not eliminate this.
+3. **Long-range dependency bottleneck.** Even with gating, early information has to survive
+   being repeatedly compressed as it's carried forward — attention removes this by letting any
+   position look directly at any earlier position.
+
+Try it below: step through a sentence and watch how much of each earlier token's contribution
+survives in the hidden state, in both modes.
+
+<RnnUnrollVisualizer />
+
+<MilestoneCard lessonId="rnn-lstm-recap" milestoneId="sequential" title="Explain why an RNN cannot parallelize over time">
+  Step to the end of the sentence above in both modes. Note that each box can only light up after
+  the one before it — that dependency is the whole limitation.
+</MilestoneCard>
+
+The same idea shows up in gradients during training — this is the shape of the vanishing
+gradient problem the gating mechanism above is fighting:
+
+<VanishingGradientChart />
+
+<MilestoneCard lessonId="rnn-lstm-recap" milestoneId="gating" title="Describe what the LSTM cell state adds">
+  Compare the two series above, then state in one sentence why gated addition preserves gradient
+  where repeated multiplication destroys it.
+</MilestoneCard>
+
+## Analogy
+
+Reading an RNN one word at a time is like reading a book with no ability to flip back — your
+only memory of chapter 1 by chapter 10 is whatever fits in the mental notes you've been
+continuously overwriting as you read. The LSTM cell state is a conveyor belt running the length
+of the sequence: at each station, three gated filters decide what gets removed, what gets
+added, and what gets read off — most of what's already on the belt just keeps riding along
+untouched, which is why it survives longer.
+
+## Worked example
+
+Sentence: `"The cat sat"`, fed one word per timestep:
+
+| t | input | hidden state update |
+|---|---|---|
+| 1 | "The" | `h_1 = f(x_"The", h_0)` — `h_0` is a zero vector |
+| 2 | "cat" | `h_2 = f(x_"cat", h_1)` — blends "The" and "cat" |
+| 3 | "sat" | `h_3 = f(x_"sat", h_2)` — the only vector a classifier sees; it must represent the whole sentence |
+
+Every word's contribution is filtered through the same weight matrix at every step, and each
+step re-compresses everything seen so far into one fixed-size vector — that's the compression
+bottleneck.
+
+## Quiz checkpoint
+
+<QuizCheckpoint
+  index={1}
+  question="Why can't an RNN process all tokens in a sequence at the same time on a GPU?"
+  answer="Because computing the hidden state at step t requires the hidden state from step t-1 — the computation is inherently sequential, not parallelizable across time."
+/>
+
+<QuizCheckpoint
+  index={2}
+  question="What does the LSTM cell state add that a vanilla RNN's hidden state doesn't have, and why does it help gradients survive over long sequences?"
+  answer="A separate pathway updated mostly through gated addition rather than repeated multiplication through a nonlinearity at every step, so gradients don't have to survive as many multiplicative shrink/grow operations to reach distant timesteps."
+/>
+
+## Trusted sources
+
+- [Understanding LSTM Networks](https://colah.github.io/posts/2015-08-Understanding-LSTMs/) — Christopher Olah — the canonical, widely-cited visual explanation of LSTM cell state and gating.
+- [CS224N: Natural Language Processing with Deep Learning](https://web.stanford.edu/class/cs224n/) — Stanford — Lecture 4 covers vanishing gradients and LSTMs as the "fancy RNN" fix.
+- [Illustrated Guide to LSTM's and GRU's: A step by step explanation](https://towardsdatascience.com/illustrated-guide-to-lstms-and-gru-s-a-step-by-step-explanation-44e9eb85bf21) — Michael Phi — beginner-friendly walkthrough of gate mechanics.

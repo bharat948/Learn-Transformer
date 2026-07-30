@@ -1,0 +1,74 @@
+import ParallelVsSequential from '../../components/viz/transformer-intro/ParallelVsSequential'
+import MilestoneCard from '../../components/ui/MilestoneCard'
+import QuizCheckpoint from '../../components/ui/QuizCheckpoint'
+
+By the mid-2010s, RNNs and LSTMs (see the [RNN & LSTM recap](/lesson/rnn-lstm-recap)) were the
+standard for sequence tasks like translation, but they had two structural problems baked into
+their design, not fixable by better training:
+
+1. **Sequential computation blocks parallelization.** An RNN must finish processing token `t`
+   before it can start token `t+1`. On modern GPUs/TPUs — built for massively parallel work —
+   this wastes the hardware's throughput entirely.
+2. **Long-range dependencies are hard to learn.** Even with LSTM gating, information about a
+   word has to travel step-by-step through the hidden state to reach a word far away. The path
+   length between two related words grows with the distance between them.
+
+The Transformer's core move: **drop recurrence and convolution entirely, and use self-attention
+as the only mechanism for mixing information across positions.** Self-attention lets every
+position directly look at every other position in a single step — the path length between any
+two tokens becomes constant (O(1)), not proportional to their distance. And because there's no
+step-by-step dependency, all positions can be processed simultaneously.
+
+Results from the original paper (Vaswani et al., 2017): a Transformer reached 28.4 BLEU on WMT
+2014 English-to-German (surpassing prior best results by 2+ BLEU) and a new state-of-the-art
+41.8 BLEU on English-to-French — trained in 3.5 days on 8 GPUs, far less than comparable prior
+models.
+
+## The parallel vs. sequential shift
+
+| | RNN / LSTM | Transformer |
+|---|---|---|
+| Processing order | Token-by-token, strictly sequential | All tokens at once |
+| Path length between distant tokens | Grows with distance | Constant (direct connection via attention) |
+| Hardware fit | Poor GPU/TPU utilization | Excellent (attention is large matrix multiplication) |
+| How context reaches a token | Passed forward through a chain of hidden states | Looked up directly via attention over all other tokens |
+
+## Analogy
+
+An RNN is like passing a note down a row of people, each person only allowed to whisper to the
+next — by the time it reaches the last person, details from the start have faded or gotten
+garbled. A Transformer is like everyone in the room turning to talk directly to anyone else at
+the same time — no relay, no fading signal, and everyone's conversation happens simultaneously.
+
+## Worked example
+
+Try it yourself below: step through the RNN's word-by-word relay, then trigger the
+Transformer's all-at-once attention and see which word "it" actually connects to.
+
+<ParallelVsSequential />
+
+<MilestoneCard lessonId="why-transformers-exist" milestoneId="path-length" title="Compare RNN vs. attention path length">
+  Using both example sentences, note how many sequential steps the RNN needs to connect the
+  pronoun to its referent — and confirm the Transformer needs one, regardless of distance.
+</MilestoneCard>
+
+## Quiz checkpoint
+
+<QuizCheckpoint
+  index={1}
+  question="Why can't an RNN process all words of a sentence at the same time?"
+  answer="Because each step's computation depends on the hidden state produced by the previous step — the sequence dependency is baked into the architecture, so steps can't run in parallel."
+/>
+
+<QuizCheckpoint
+  index={2}
+  question='In a Transformer, how many "steps" does it take for information from word A to influence word B, no matter how far apart they are in the sentence?'
+  answer="One — self-attention connects any two positions directly, so path length is constant regardless of distance."
+/>
+
+## Trusted sources
+
+- [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) — Jay Alammar — the standard beginner-friendly visual walkthrough of the Transformer.
+- ["Attention Is All You Need"](https://arxiv.org/abs/1706.03762) — Vaswani et al., 2017 — the original paper; source of the parallelization/long-range-dependency motivation and BLEU results.
+- [Transformer: A Novel Neural Network Architecture for Language Understanding](https://research.google/blog/transformer-a-novel-neural-network-architecture-for-language-understanding/) — Google Research Blog (2017).
+- [Hugging Face NLP Course, Chapter 1](https://huggingface.co/learn/nlp-course/chapter1/4) — Hugging Face.

@@ -1,0 +1,148 @@
+@import '@fontsource-variable/source-serif-4';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-paper font-serif text-ink-body antialiased;
+    font-variant-numeric: oldstyle-nums proportional-nums;
+  }
+
+  /* Headings and chrome are sans; only prose is serif. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-sans text-ink;
+    font-variant-numeric: lining-nums tabular-nums;
+    letter-spacing: -0.018em;
+  }
+
+  /* Numbers in data contexts should align in columns. */
+  table,
+  code,
+  pre,
+  .tabular {
+    font-variant-numeric: lining-nums tabular-nums;
+  }
+}
+
+@layer components {
+  /* A small uppercase label. Used for eyebrows, figure numbers, section kickers. */
+  .label {
+    @apply font-sans text-[0.6875rem] font-medium uppercase tracking-label text-ink-faint;
+  }
+
+  /* Figures are first-class content, not boxed cards: a hairline above and below,
+     full width of the reading column, with a caption underneath. */
+  .figure {
+    @apply my-10 border-y border-rule py-6;
+  }
+
+  .figure-caption {
+    @apply mt-4 font-sans text-[0.8125rem] leading-relaxed text-ink-muted;
+  }
+}
+
+/* ---- Prose ----------------------------------------------------------------
+   Body copy is serif at a generous size and measure. The typography plugin's
+   defaults are overridden rather than extended, because its stock rhythm is
+   tuned for sans-serif marketing pages, not long-form reading.
+--------------------------------------------------------------------------- */
+
+.prose {
+  @apply font-serif text-prose text-ink-body;
+  max-width: none;
+}
+
+.prose :where(p, ul, ol, blockquote):not(:where([class~='not-prose'] *)) {
+  @apply my-[1.1em];
+}
+
+.prose :where(h2):not(:where([class~='not-prose'] *)) {
+  @apply mb-3 mt-14 font-sans text-[1.375rem] font-semibold text-ink;
+}
+
+.prose :where(h3):not(:where([class~='not-prose'] *)) {
+  @apply mb-2 mt-10 font-sans text-[1.0625rem] font-semibold text-ink;
+}
+
+.prose :where(strong):not(:where([class~='not-prose'] *)) {
+  @apply font-semibold text-ink;
+}
+
+/* Links: accent, with a rule that thickens on hover — an editorial convention,
+   not a button. */
+.prose :where(a):not(:where([class~='not-prose'] *)) {
+  @apply font-medium text-accent no-underline;
+  box-shadow: inset 0 -1px 0 0 theme('colors.accent.soft');
+  transition: box-shadow 0.15s ease;
+}
+
+.prose :where(a):not(:where([class~='not-prose'] *)):hover {
+  box-shadow: inset 0 -2px 0 0 theme('colors.accent.DEFAULT');
+}
+
+/* Inline code sits inside serif prose, so it needs to be optically smaller. */
+.prose :where(code):not(:where([class~='not-prose'] *)) {
+  @apply rounded-[3px] bg-[#f1eee9] px-[0.3em] py-[0.1em] font-mono text-[0.82em] font-normal text-ink;
+}
+
+/* The typography plugin injects literal backticks around inline code via
+   ::before/::after. They render visually but never appear in textContent, so
+   they survive any DOM-based check — kill them explicitly. */
+.prose :where(code):not(:where([class~='not-prose'] *))::before,
+.prose :where(code):not(:where([class~='not-prose'] *))::after {
+  content: none;
+}
+
+.prose :where(pre):not(:where([class~='not-prose'] *)) {
+  @apply my-8 overflow-x-auto rounded-none border-y border-rule-strong bg-[#f7f5f1] px-0 py-5 font-mono text-[0.8125rem] leading-relaxed text-ink;
+}
+
+/* Reset the inline-code chip inside fenced blocks — the pre already provides
+   the surface, so a nested chip would double up the background. */
+.prose :where(pre code):not(:where([class~='not-prose'] *)) {
+  @apply bg-transparent p-0 text-[1em] text-inherit;
+}
+
+.prose :where(blockquote):not(:where([class~='not-prose'] *)) {
+  @apply border-l-2 border-rule-strong pl-5 italic text-ink-muted;
+}
+
+.prose :where(li):not(:where([class~='not-prose'] *)) {
+  @apply my-1.5;
+}
+
+.prose :where(ul > li):not(:where([class~='not-prose'] *))::marker {
+  @apply text-ink-faint;
+}
+
+.prose :where(ol > li):not(:where([class~='not-prose'] *))::marker {
+  @apply font-sans text-[0.85em] text-ink-faint;
+}
+
+/* Tables read as data, so they switch to sans and hairline rules. */
+.prose :where(table):not(:where([class~='not-prose'] *)) {
+  @apply my-8 w-full border-collapse font-sans text-[0.875rem];
+}
+
+.prose :where(thead th):not(:where([class~='not-prose'] *)) {
+  @apply border-b border-rule-strong pb-2 text-left font-medium text-ink-muted;
+}
+
+.prose :where(tbody td):not(:where([class~='not-prose'] *)) {
+  @apply border-b border-rule py-2.5 align-top text-ink-body;
+}
+
+.prose :where(hr):not(:where([class~='not-prose'] *)) {
+  @apply my-12 border-rule;
+}

@@ -1,0 +1,99 @@
+import MultiHeadExplorer from '../../components/viz/attention/MultiHeadExplorer'
+import CodeSandbox from '../../components/ui/CodeSandbox'
+import MilestoneCard from '../../components/ui/MilestoneCard'
+import QuizCheckpoint from '../../components/ui/QuizCheckpoint'
+
+A single attention layer computes one weighted average per token. That is a real limit: a token
+often needs to track several different relationships at once. In *"The bank raised rates after
+the flood"*, the word "bank" needs both the syntactic subject relationship and the semantic
+disambiguation from "rates" versus "flood" — one set of attention weights has to pick.
+
+Multi-head attention solves this by running attention **several times in parallel**, each in its
+own lower-dimensional subspace, then concatenating the results.
+
+## How the split works
+
+The mechanism is simpler than it sounds. With `d_model = 128` and `num_heads = 4`:
+
+1. Project the input into Q, K, V as usual — still `d_model` wide.
+2. **Slice** each of those into 4 chunks of `d_k = d_model / num_heads = 32`.
+3. Run ordinary scaled dot-product attention independently in each chunk.
+4. **Concatenate** the 4 outputs back to 128 dims.
+5. Apply one final output projection `W_o`.
+
+Note what this does *not* cost: because the heads are slices rather than copies, total
+computation is roughly the same as single-head attention over the full width. You get multiple
+relationship channels for free.
+
+<MilestoneCard lessonId="multi-head-attention" milestoneId="split" title="Split a vector into heads" auto>
+  Implement the slicing step that turns one d_model vector into num_heads sub-vectors.
+</MilestoneCard>
+
+<CodeSandbox exerciseId="splitHeads" lessonId="multi-head-attention" milestoneId="split" />
+
+## Real heads from the trained model
+
+Below are the **actual attention weights** from this repo's trained checkpoint — 2 layers × 4
+heads, captured by running real AG News headlines through
+`model(token_ids, return_attention=True)`. Nothing here is hand-authored.
+
+Look for the specialization: the heads do not agree with each other. Some concentrate on a
+single topic-bearing noun, some spread attention broadly, and layer 1 generally looks different
+from layer 0.
+
+<MultiHeadExplorer />
+
+Two things worth noticing while you click around:
+
+- **Heads disagree, and that is the point.** If every head learned the same pattern, the extra
+  heads would be wasted parameters. Their disagreement is the evidence that the subspaces
+  captured different relationships.
+- **Broad, flat attention is not a failure.** For topic classification with mean-pooling, a head
+  that spreads weight evenly is effectively saying "average everything" — a genuinely useful
+  operation for this task.
+
+<MilestoneCard lessonId="multi-head-attention" milestoneId="compare-heads" title="Find two heads that disagree">
+  Pick any sentence, open Layer 0, and identify two heads whose "attends most to" token differs.
+  That difference is multi-head attention earning its keep.
+</MilestoneCard>
+
+## Why concatenate instead of average?
+
+A natural question: why not just average the heads? Because averaging would collapse them back
+into one pattern and throw away exactly what you paid to compute. Concatenation keeps all four
+results distinct, and the learned output projection `W_o` decides how to blend them — which
+means the model can learn *per-dimension* how much each head should contribute, rather than
+being forced into a uniform mix.
+
+## Repo grounding
+
+This is `MultiHeadAttention` in `mini_transformer/model/attention.py`:
+
+- `_split_heads` reshapes `(batch, seq, d_model)` → `(batch, heads, seq, d_k)`
+- `scaled_dot_product_attention` runs on all heads at once (the head axis just rides along as a
+  batch dimension)
+- `_merge_heads` reverses the reshape
+- `self.w_o` is the final projection
+- `self.attn_weights` caches the weights — which is exactly what the visualization above reads
+
+The constructor also enforces `d_model % num_heads == 0`, the same rule your `splitHeads`
+implementation had to reject.
+
+## Quiz checkpoint
+
+<QuizCheckpoint
+  index={1}
+  question="With d_model = 128 and 8 heads, what is d_k, and roughly how does the total compute compare to single-head attention over the full 128 dims?"
+  answer="d_k = 128 / 8 = 16. Total compute is roughly the same — the heads partition the existing width rather than duplicating it, so you get 8 independent attention patterns for approximately the cost of one."
+/>
+
+<QuizCheckpoint
+  index={2}
+  question="Why concatenate the head outputs rather than averaging them?"
+  answer="Averaging would collapse the heads back into a single pattern, discarding the distinct relationships they each learned. Concatenation preserves all of them, and the learned output projection W_o then decides how much each head contributes to each output dimension."
+/>
+
+## Trusted sources
+
+- ["Attention Is All You Need"](https://arxiv.org/abs/1706.03762), Section 3.2.2 — Vaswani et al., 2017 — defines multi-head attention and the "jointly attend to information from different representation subspaces" rationale.
+- [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) — Jay Alammar — the multi-head section, including the head-by-head attention visualizations this lesson mirrors with real data.
