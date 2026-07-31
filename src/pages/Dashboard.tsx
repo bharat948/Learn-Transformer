@@ -25,7 +25,7 @@ export default function Dashboard() {
     <div>
       <header className="mb-12">
         <p className="label mb-3">Lab dashboard</p>
-        <h1 className="text-[2.125rem] font-semibold leading-[1.15] text-ink">Your workspace</h1>
+        <h1 className="text-[1.625rem] font-semibold leading-[1.18] sm:text-[2.125rem] sm:leading-[1.15] text-ink">Your workspace</h1>
       </header>
 
       <dl className="mb-12 flex flex-wrap gap-x-14 gap-y-6 border-y border-rule-strong py-6">
@@ -35,7 +35,7 @@ export default function Dashboard() {
           ['Exercises started', `${exercisesStarted}/${exerciseList.length}`],
         ].map(([label, value]) => (
           <div key={label}>
-            <dd className="font-mono text-[1.75rem] tabular leading-none text-ink">{value}</dd>
+            <dd className="font-mono text-[1.5rem] tabular leading-none sm:text-[1.75rem] text-ink">{value}</dd>
             <dt className="label mt-2">{label}</dt>
           </div>
         ))}

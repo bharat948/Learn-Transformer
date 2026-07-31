@@ -24,7 +24,7 @@ export default function LessonLayout({ lesson, children }: LessonLayoutProps) {
         <p className="label mb-3">
           Lesson {lesson.order} of {lessons.length - 1} · {KIND_LABEL[lesson.kind]}
         </p>
-        <h1 className="text-[2.125rem] font-semibold leading-[1.15] text-ink">{lesson.title}</h1>
+        <h1 className="text-[1.625rem] font-semibold leading-[1.18] sm:text-[2.125rem] sm:leading-[1.15] text-ink">{lesson.title}</h1>
         <p className="mt-5 border-t border-rule pt-5 font-serif text-prose-sm italic text-ink-muted">
           By the end you can {lesson.objective.charAt(0).toLowerCase() + lesson.objective.slice(1)}
         </p>
@@ -93,8 +93,8 @@ export default function LessonLayout({ lesson, children }: LessonLayoutProps) {
         )}
       </p>
 
-      <nav className="mt-10 flex items-center justify-between gap-6 border-t border-rule pt-6">
-        <div className="min-w-0 flex-1">
+      <nav className="mt-10 flex flex-col gap-5 border-t border-rule pt-6 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+        <div className="order-2 min-w-0 sm:order-1 sm:flex-1">
           {prev && (
             <Link to={`/lesson/${prev.slug}`} className="group block">
               <span className="label block">Previous</span>
@@ -109,7 +109,7 @@ export default function LessonLayout({ lesson, children }: LessonLayoutProps) {
           type="button"
           onClick={() => markComplete(lesson.id)}
           disabled={complete}
-          className={`shrink-0 border px-4 py-2 font-sans text-[0.8125rem] font-medium transition ${
+          className={`order-1 w-full shrink-0 border px-4 py-2.5 font-sans text-[0.8125rem] font-medium transition sm:order-2 sm:w-auto sm:py-2 ${
             complete
               ? 'cursor-default border-rule text-ink-faint'
               : 'border-accent bg-accent text-paper hover:bg-accent-hover'
@@ -118,7 +118,7 @@ export default function LessonLayout({ lesson, children }: LessonLayoutProps) {
           {complete ? 'Completed' : 'Mark complete'}
         </button>
 
-        <div className="min-w-0 flex-1 text-right">
+        <div className="order-3 min-w-0 sm:flex-1 sm:text-right">
           {next ? (
             <Link to={`/lesson/${next.slug}`} className="group block">
               <span className="label block">Next</span>

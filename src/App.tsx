@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import AppShell from './components/layout/AppShell'
 import { ProgressProvider } from './lib/progress'
@@ -12,7 +12,8 @@ export default function App() {
       <BrowserRouter>
         <AppShell>
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/course" element={<Home />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/lesson/:slug" element={<LessonPage />} />
           </Routes>

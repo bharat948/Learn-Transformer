@@ -95,10 +95,14 @@ export default function MultiHeadExplorer() {
                 </button>
               </div>
 
+              {/* 9-11 token columns will not fit a phone; scroll the matrix
+                  rather than letting it push the page sideways. */}
+              <div className="-mx-1 overflow-x-auto px-1">
               <div
                 className="grid gap-[1px]"
                 style={{
-                  gridTemplateColumns: `minmax(48px, auto) repeat(${sentence.tokens.length}, 1fr)`,
+                  gridTemplateColumns: `minmax(44px, auto) repeat(${sentence.tokens.length}, minmax(14px, 1fr))`,
+                  minWidth: 260,
                 }}
               >
                 <div />
@@ -120,6 +124,7 @@ export default function MultiHeadExplorer() {
                     ))}
                   </div>
                 ))}
+              </div>
               </div>
 
               <p className="mt-2 text-[11px] text-ink-faint">

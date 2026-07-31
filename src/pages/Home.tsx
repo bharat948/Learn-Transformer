@@ -25,7 +25,7 @@ export default function Home() {
     <div>
       <header className="mb-16">
         <p className="label mb-4">A hands-on course</p>
-        <h1 className="max-w-measure text-[2.75rem] font-semibold leading-[1.08] text-ink">
+        <h1 className="max-w-measure text-[1.875rem] font-semibold leading-[1.12] sm:text-[2.25rem] lg:text-[2.75rem] sm:leading-[1.08] text-ink">
           Understand it. See it.
           <br />
           Play with it. Build it.

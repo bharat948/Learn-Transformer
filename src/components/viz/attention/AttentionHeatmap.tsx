@@ -50,9 +50,13 @@ export default function AttentionHeatmap() {
         ))}
       </div>
 
+      <div className="-mx-1 overflow-x-auto px-1">
       <div
         className="grid gap-1"
-        style={{ gridTemplateColumns: `80px repeat(${TOKENS.length}, 1fr)` }}
+        style={{
+          gridTemplateColumns: `minmax(56px, 80px) repeat(${TOKENS.length}, minmax(28px, 1fr))`,
+          minWidth: 300,
+        }}
       >
         <div />
         {TOKENS.map((t) => (
@@ -81,6 +85,7 @@ export default function AttentionHeatmap() {
             })}
           </Fragment>
         ))}
+      </div>
       </div>
 
       <div className="mt-5">

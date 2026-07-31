@@ -54,7 +54,8 @@ export default function ModelComparison() {
 
       {view === 'baselines' && (
         <>
-          <table className="w-full text-sm">
+          <div className="-mx-1 overflow-x-auto px-1">
+          <table className="w-full min-w-[420px] text-sm">
             <thead>
               <tr className="text-left text-xs text-ink-faint">
                 <th className="pb-2 font-medium">model</th>
@@ -99,6 +100,7 @@ export default function ModelComparison() {
               ))}
             </tbody>
           </table>
+          </div>
           <p className="mt-3 mt-4 max-w-measure font-serif text-[0.9375rem] leading-relaxed text-ink-muted">
             All models share the same embedding dimension, dropout, optimizer, and schedule, so
             the comparison isolates architecture rather than tuning. Notice how close{' '}
@@ -161,9 +163,13 @@ export default function ModelComparison() {
               </button>
             ))}
           </div>
+          <div className="-mx-1 overflow-x-auto px-1">
           <div
             className="grid gap-1 text-xs"
-            style={{ gridTemplateColumns: `72px repeat(${classNames.length}, 1fr)` }}
+            style={{
+              gridTemplateColumns: `minmax(56px, 72px) repeat(${classNames.length}, minmax(34px, 1fr))`,
+              minWidth: 280,
+            }}
           >
             <div />
             {classNames.map((c) => (
@@ -197,8 +203,9 @@ export default function ModelComparison() {
               )
             })}
           </div>
+          </div>
           <p className="mt-3 mt-4 max-w-measure font-serif text-[0.9375rem] leading-relaxed text-ink-muted">
-            Rows are the true class, columns the prediction — the teal diagonal is correct, red
+            Rows are the true class, columns the prediction — the slate diagonal is correct, rust
             off-diagonal is error. The biggest confusion is{' '}
             <strong>Business ↔ Sci/Tech</strong>, which makes sense: a story about a tech company’s
             earnings genuinely belongs to both.

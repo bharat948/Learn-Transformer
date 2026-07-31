@@ -14,6 +14,9 @@
   body {
     @apply bg-paper font-serif text-ink-body antialiased;
     font-variant-numeric: oldstyle-nums proportional-nums;
+    /* Belt-and-braces: individual wide blocks scroll themselves, but nothing
+       should ever be able to push the whole page sideways. */
+    overflow-x: hidden;
   }
 
   /* Headings and chrome are sans; only prose is serif. */
@@ -59,8 +62,23 @@
 --------------------------------------------------------------------------- */
 
 .prose {
-  @apply font-serif text-prose text-ink-body;
+  @apply font-serif text-prose-sm text-ink-body;
   max-width: none;
+}
+
+/* Step prose up to the full reading size once there is room for it. */
+@media (min-width: 640px) {
+  .prose {
+    @apply text-prose;
+  }
+}
+
+/* Wide content (tables, matrices, code) scrolls inside its own box — the page
+   body must never scroll sideways on a phone. */
+.prose :where(table):not(:where([class~='not-prose'] *)) {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
 }
 
 .prose :where(p, ul, ol, blockquote):not(:where([class~='not-prose'] *)) {

@@ -131,7 +131,7 @@ export default function RnnUnrollVisualizer() {
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-accent">
             Cell state "conveyor belt"
           </p>
-          <div className="flex items-center gap-3 text-xs text-ink-muted">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-ink-muted">
             <span className="rounded-full bg-surface px-2 py-1 " style={{ opacity: 0.85 }}>
               forget gate
             </span>
@@ -141,7 +141,7 @@ export default function RnnUnrollVisualizer() {
             <span className="rounded-full bg-surface px-2 py-1 " style={{ opacity: 0.65 }}>
               output gate
             </span>
-            <span className="ml-auto text-ink-faint">
+            <span className="text-ink-faint sm:ml-auto">
               gated addition → old information mostly survives each step
             </span>
           </div>
