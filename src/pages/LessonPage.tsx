@@ -1,6 +1,7 @@
 import { Navigate, useParams } from 'react-router-dom'
 
 import LessonLayout from '../components/layout/LessonLayout'
+import CodeBlock from '../components/ui/CodeBlock'
 import { getLessonBySlug } from '../data/lessons'
 
 export default function LessonPage() {
@@ -15,7 +16,7 @@ export default function LessonPage() {
 
   return (
     <LessonLayout lesson={lesson}>
-      <Component />
+      <Component components={{ figure: CodeBlock }} />
     </LessonLayout>
   )
 }

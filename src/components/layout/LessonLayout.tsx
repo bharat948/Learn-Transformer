@@ -20,10 +20,15 @@ export default function LessonLayout({ lesson, children }: LessonLayoutProps) {
 
   return (
     <article>
+      <nav className="mb-8 flex flex-wrap items-center gap-2 font-mono text-[0.6875rem] text-ink-faint">
+        <Link to="/course" className="transition hover:text-accent">Course Overview</Link>
+        <span>/</span>
+        <span>{KIND_LABEL[lesson.kind]}</span>
+        <span>/</span>
+        <span className="text-ink-muted">Lesson {lesson.order}</span>
+      </nav>
+
       <header className="mb-12">
-        <p className="label mb-3">
-          Lesson {lesson.order} of {lessons.length - 1} · {KIND_LABEL[lesson.kind]}
-        </p>
         <h1 className="text-[1.625rem] font-semibold leading-[1.18] sm:text-[2.125rem] sm:leading-[1.15] text-ink">{lesson.title}</h1>
         <p className="mt-5 border-t border-rule pt-5 font-serif text-prose-sm italic text-ink-muted">
           By the end you can {lesson.objective.charAt(0).toLowerCase() + lesson.objective.slice(1)}
@@ -109,13 +114,24 @@ export default function LessonLayout({ lesson, children }: LessonLayoutProps) {
           type="button"
           onClick={() => markComplete(lesson.id)}
           disabled={complete}
-          className={`order-1 w-full shrink-0 border px-4 py-2.5 font-sans text-[0.8125rem] font-medium transition sm:order-2 sm:w-auto sm:py-2 ${
+          className={`order-1 flex w-full shrink-0 items-center justify-center gap-2 border px-4 py-2.5 font-sans text-[0.8125rem] font-medium transition-all duration-300 sm:order-2 sm:w-auto sm:py-2 ${
             complete
-              ? 'cursor-default border-rule text-ink-faint'
+              ? 'cursor-default border-rule bg-paper text-ink'
               : 'border-accent bg-accent text-paper hover:bg-accent-hover'
           }`}
         >
-          {complete ? 'Completed' : 'Mark complete'}
+          {complete && (
+            <svg
+              className="h-3.5 w-3.5 text-accent"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+          <span>{complete ? 'Completed' : 'Mark complete'}</span>
         </button>
 
         <div className="order-3 min-w-0 sm:flex-1 sm:text-right">

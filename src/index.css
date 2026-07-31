@@ -132,6 +132,27 @@
   @apply bg-transparent p-0 text-[1em] text-inherit;
 }
 
+/* Override styles for enhanced CodeBlock (rehype-pretty-code) */
+figure[data-rehype-pretty-code-figure] {
+  @apply my-8 border-none !important;
+}
+
+figure[data-rehype-pretty-code-figure] pre {
+  @apply my-0 border-none bg-transparent py-4 text-[#adbac7] !important;
+}
+
+figure[data-rehype-pretty-code-figure] code {
+  @apply grid p-0 bg-transparent text-[0.8125rem] leading-loose !important;
+}
+
+figure[data-rehype-pretty-code-figure] [data-line] {
+  @apply px-5 border-l-2 border-transparent;
+}
+
+figure[data-rehype-pretty-code-figure] [data-highlighted-line] {
+  @apply bg-white/5 border-emerald-400;
+}
+
 .prose :where(blockquote):not(:where([class~='not-prose'] *)) {
   @apply border-l-2 border-rule-strong pl-5 italic text-ink-muted;
 }

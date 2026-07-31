@@ -63,7 +63,7 @@ export const lessons: Lesson[] = [
       'How sequence modeling worked before attention, and exactly which limitations Transformers were built to remove.',
     kind: 'theory',
     objective:
-      'Explain why RNNs cannot be parallelized and why long-range dependencies degrade, even with LSTM gating.',
+      'By the end, you can explain why RNN computation cannot be parallelized across timesteps, why long-range dependencies are difficult to preserve, and how LSTMs mitigate—but do not eliminate—this problem.',
     milestones: [
       { id: 'sequential', title: 'Explain why an RNN cannot parallelize over time' },
       { id: 'gating', title: 'Describe what the LSTM cell state adds' },

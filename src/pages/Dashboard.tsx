@@ -28,7 +28,7 @@ export default function Dashboard() {
         <h1 className="text-[1.625rem] font-semibold leading-[1.18] sm:text-[2.125rem] sm:leading-[1.15] text-ink">Your workspace</h1>
       </header>
 
-      <dl className="mb-12 flex flex-wrap gap-x-14 gap-y-6 border-y border-rule-strong py-6">
+      <dl className="mb-6 flex flex-wrap gap-x-14 gap-y-6 border-t border-rule-strong pt-6">
         {[
           ['Lessons complete', `${lessonsDone}/${lessons.length}`],
           ['Milestones hit', `${milestonesDone}/${totalMilestones}`],
@@ -41,13 +41,27 @@ export default function Dashboard() {
         ))}
       </dl>
 
+      <div className="mb-12" aria-hidden="true">
+        <div className="h-[2px] w-full bg-rule">
+          <div 
+            className="h-full bg-accent transition-all duration-1000 ease-out" 
+            style={{ width: `${(lessonsDone / lessons.length) * 100}%` }}
+          />
+        </div>
+      </div>
+
       {nextLesson && (
-        <p className="mb-12 font-serif text-prose-sm italic text-ink-muted">
-          Pick up where you left off:{' '}
-          <Link to={`/lesson/${nextLesson.slug}`} className="not-italic text-accent">
-            Lesson {nextLesson.order} — {nextLesson.title}
+        <div className="mb-14 border-l-2 border-accent py-1 pl-5">
+          <p className="label mb-2 text-ink-faint">Up next</p>
+          <Link to={`/lesson/${nextLesson.slug}`} className="group block">
+            <span className="block font-sans text-[1.125rem] font-medium text-ink transition group-hover:text-accent">
+              Lesson {nextLesson.order} — {nextLesson.title}
+            </span>
+            <span className="mt-1 block max-w-measure font-serif text-[1rem] text-ink-muted">
+              Continue your progress.
+            </span>
           </Link>
-        </p>
+        </div>
       )}
 
       <section className="mb-14">

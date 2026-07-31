@@ -7,52 +7,80 @@ Before learning why Transformers work, it helps to understand how sequence data 
 before them — RNNs and LSTMs — and precisely which of their limitations the Transformer's
 attention mechanism was designed to eliminate.
 
-## RNNs
+## The Origin: Why do we need RNNs?
 
-A Recurrent Neural Network processes a sequence one token at a time, carrying a **hidden
-state** forward like a running summary. At each timestep `t`, the same small network (the
-"cell") takes the current input `x_t` and the previous hidden state `h_{t-1}`, and produces a
-new hidden state `h_t = f(x_t, h_{t-1})`. Unrolled across a sentence, this looks like the same
-block of weights applied repeatedly, left to right, each step's output feeding the next step's
-input.
+Traditional feed-forward architectures do not naturally maintain a state that evolves with a variable-length sequence. 
 
-## LSTMs
+Recurrent Neural Networks (RNNs) address this by introducing recurrence: the same parameters are reused at every timestep while a hidden state ($h$) carries information from earlier tokens forward, acting as a running memory of everything it has seen so far.
 
-Plain RNNs are bad at holding onto information over more than a few steps. The LSTM
-(Hochreiter & Schmidhuber, 1997) fixes this by splitting the recurrent state into two parts: a
-**hidden state** (like before) and a **cell state** — a separate pathway that acts like a
-conveyor belt running through the whole sequence, with only minor, gated modifications at each
-step. Three sigmoid gates control that belt:
+## Vanilla RNNs: The Math
 
-- **Forget gate** — decides what fraction of the old cell state to keep.
-- **Input gate** — decides what new information gets written onto the cell state.
-- **Output gate** — decides what part of the cell state gets exposed as the hidden state at
-  this step.
+At each timestep $t$, the RNN cell takes the current input word $x_t$ and the previous hidden state $h_{t-1}$, and produces a new hidden state $h_t$. Instead of a vague $f(x, h)$ function, this is the concrete linear algebra happening inside the cell:
 
-Because the cell state is updated mostly by addition (gated pass-through) rather than by
-repeated multiplication through a nonlinearity, gradients can flow backward through many
-timesteps largely unattenuated — the mechanical reason LSTMs remember longer than vanilla
-RNNs.
+$$
+h_t = \tanh(W_{hh} h_{t-1} + W_{hx} x_t + b)
+$$
 
-## Seq2seq and the context-vector bottleneck
+Here is exactly what that means:
+- $W_{hx}$: The weight matrix applied to the incoming word $x_t$. It asks, *"What does this new word mean?"*
+- $W_{hh}$: The weight matrix applied to the previous memory $h_{t-1}$. It asks, *"Given what we remember, how should we update our context?"*
+- These two vectors are added together (plus a bias term $b$) and passed through a $\tanh$ activation function, which safely squishes the values between $-1$ and $1$ so the numbers don't explode to infinity as the loop repeats.
 
-For tasks like translation, two RNNs/LSTMs were chained: an **encoder** reads the input
-sequence and compresses it into a single final hidden state (a "context vector"), and a
-**decoder** generates the output sequence from that one vector. This encoder-decoder pattern
-was the dominant NLP architecture right up until attention — and its single-vector bottleneck
-is exactly what attention mechanisms, and later Transformers, were invented to remove.
+## Intuition: Before the Equations
 
-## Why this matters for Transformers
+Reading an RNN one word at a time is like reading a book with no ability to flip back — your only memory of chapter 1 by chapter 10 is whatever fits in the mental notes you've been continuously overwriting as you read.
 
-Three concrete limitations motivated the shift to attention-only architectures:
+The LSTM cell state is a conveyor belt running the length of the sequence: at each station, three **learned, gated filters** decide what gets removed, what gets placed on, and what gets read off. Most of what's already on the belt keeps riding along untouched. This additive structure is precisely what lets gradients survive long sequences — and why the LSTM math below is shaped the way it is.
 
-1. **Strictly sequential computation.** `h_t` cannot be computed until `h_{t-1}` exists, so
-   RNNs can't be parallelized across the time dimension on a GPU.
-2. **Vanishing/exploding gradients.** Backpropagation through time multiplies gradients
-   repeatedly across timesteps; LSTM gating mitigates but does not eliminate this.
-3. **Long-range dependency bottleneck.** Even with gating, early information has to survive
-   being repeatedly compressed as it's carried forward — attention removes this by letting any
-   position look directly at any earlier position.
+## LSTMs: Fixing the Short-Term Memory
+
+Plain RNNs struggle to hold onto information over more than ~10 timesteps in practice because of the repeated $\tanh$ squishing and matrix multiplication (visualized below). The **Long Short-Term Memory (LSTM)** network (Hochreiter & Schmidhuber, 1997) fixes this by introducing a **cell state** ($C_t$) — a separate pathway that acts like that conveyor belt, updated mostly through addition rather than through a nonlinearity at every step.
+
+<figure className="my-8">
+  <img src="https://colah.github.io/posts/2015-08-Understanding-LSTMs/img/LSTM3-chain.png" alt="An unrolled LSTM chain" className="mx-auto rounded-lg bg-white p-2 shadow-sm" />
+  <figcaption className="mt-3 text-center text-sm text-ink-muted">The repeating module in an LSTM contains four interacting layers. (Source: Christopher Olah)</figcaption>
+</figure>
+
+Before reading the gate equations, note the symbol $\odot$: it denotes **element-wise (Hadamard) multiplication**, where each dimension is multiplied independently:
+$$[0.8,\ 0.2,\ 0.9] \odot [5,\ 3,\ 1] = [4.0,\ 0.6,\ 0.9]$$
+This differs from matrix multiplication. Because $f_t$ is applied element-wise, the forget gate can independently choose to keep, partially keep, or discard *each individual feature* stored in the cell state — acting as a per-dimension valve, not a single global switch.
+
+An LSTM controls its cell state through three such gates (each using the sigmoid function $\sigma$, outputting values between 0 and 1):
+
+1. **The Forget Gate ($f_t$):** Decides what fraction of the old cell state to keep.
+   $$f_t = \sigma(W_f \cdot [h_{t-1}, x_t] + b_f)$$
+2. **The Input Gate ($i_t$):** Decides what new information is allowed in.
+   $$i_t = \sigma(W_i \cdot [h_{t-1}, x_t] + b_i)$$
+
+After the input gate filters the new information, we create a **candidate cell state**:
+$$ \tilde{C}_t = \tanh(W_C \cdot [h_{t-1}, x_t] + b_C) $$
+
+Then, we actually update the main conveyor belt ($C_t$) through **gated addition**:
+$$ C_t = f_t \odot C_{t-1} + i_t \odot \tilde{C}_t $$
+
+Finally, **The Output Gate ($o_t$)** decides what part of the updated cell state gets exposed as the hidden state $h_t$:
+$$ o_t = \sigma(W_o \cdot [h_{t-1}, x_t] + b_o) $$
+$$ h_t = o_t \odot \tanh(C_t) $$
+
+During training, errors are propagated backward through time — a process called **Backpropagation Through Time (BPTT)**. For a vanilla RNN, this requires multiplying gradients across every timestep:
+$$\frac{\partial L}{\partial h_1} = \frac{\partial L}{\partial h_T} \cdot \prod_{t=2}^{T} \frac{\partial h_t}{\partial h_{t-1}}$$
+Each factor involves $\tanh'$, which is at most 1, so the product of many terms shrinks exponentially — the vanishing gradient problem (Bengio et al., 1994).
+
+The LSTM's cell state changes this. Since $C_t = f_t \odot C_{t-1} + i_t \odot \tilde{C}_t$, the direct gradient through the cell state at each step is:
+$$\frac{\partial C_t}{\partial C_{t-1}} = f_t$$
+Backpropagation chains this backward as $\prod_{t} f_t$. If $f_t \approx 1$ at every step, the product stays near 1 and the gradient survives intact. If $f_t$ is consistently below 1, the product still decays across many steps. This is exactly why LSTMs *mitigate* — but do not *eliminate* — the vanishing gradient problem.
+
+## The Two Bottlenecks
+
+As researchers scaled these networks, they hit two distinct structural ceilings:
+
+**1. The Recurrent Compression Bottleneck**
+Even with LSTM gating, early information has to survive being repeatedly compressed as it's carried forward through the recurrent states. In an RNN, information from token 1 reaching token 100 must travel a **computational path length** of roughly 99 sequential transitions ($h_1 \rightarrow h_2 \rightarrow \dots \rightarrow h_{100}$). This inherently degrades long-range dependencies, and because $h_t$ depends strictly on $h_{t-1}$, processing cannot be parallelized across time.
+
+**2. The Seq2Seq Context-Vector Bottleneck**
+For tasks like translation, two LSTMs were chained together. An **encoder** read the source sentence and compressed it into a single final hidden state (the "context vector"). A **decoder** then generated the output sequence from that one vector. Forcing an entire paragraph into one fixed-length vector caused translation quality to plummet on long sentences.
+
+Early attention mechanisms directly addressed the seq2seq bottleneck by letting the decoder access encoder states across all positions. Transformers subsequently went further: they removed recurrence entirely, relying on self-attention so that token 100 can directly interact with token 1 in a single step ($x_{100} \leftrightarrow x_1$), reducing the path length from $O(N)$ to $O(1)$.
 
 Try it below: step through a sentence and watch how much of each earlier token's contribution
 survives in the hidden state, in both modes.
@@ -74,28 +102,19 @@ gradient problem the gating mechanism above is fighting:
   where repeated multiplication destroys it.
 </MilestoneCard>
 
-## Analogy
 
-Reading an RNN one word at a time is like reading a book with no ability to flip back — your
-only memory of chapter 1 by chapter 10 is whatever fits in the mental notes you've been
-continuously overwriting as you read. The LSTM cell state is a conveyor belt running the length
-of the sequence: at each station, three gated filters decide what gets removed, what gets
-added, and what gets read off — most of what's already on the belt just keeps riding along
-untouched, which is why it survives longer.
 
 ## Worked example
 
-Sentence: `"The cat sat"`, fed one word per timestep:
+Sentence: `"The cat sat"`, fed one word per timestep. Let's trace the math of a vanilla RNN:
 
-| t | input | hidden state update |
+| $t$ | input | hidden state update |
 |---|---|---|
-| 1 | "The" | `h_1 = f(x_"The", h_0)` — `h_0` is a zero vector |
-| 2 | "cat" | `h_2 = f(x_"cat", h_1)` — blends "The" and "cat" |
-| 3 | "sat" | `h_3 = f(x_"sat", h_2)` — the only vector a classifier sees; it must represent the whole sentence |
+| 1 | "The" | $h_1 = \tanh(W_{hh} \mathbf{0} + W_{hx} x_{\text{"The"}})$ — The first word enters an empty memory. |
+| 2 | "cat" | $h_2 = \tanh(W_{hh} h_1 + W_{hx} x_{\text{"cat"}})$ — The matrix blends the context of "The" with the new word "cat". |
+| 3 | "sat" | $h_3 = \tanh(W_{hh} h_2 + W_{hx} x_{\text{"sat"}})$ — This final vector $h_3$ is what a classifier sees; it must represent the entire sentence. |
 
-Every word's contribution is filtered through the same weight matrix at every step, and each
-step re-compresses everything seen so far into one fixed-size vector — that's the compression
-bottleneck.
+Every word's contribution is filtered through the same weight matrices at every step, and each step re-compresses everything seen so far into one fixed-size vector — this is the recurrent compression bottleneck.
 
 ## Quiz checkpoint
 
@@ -113,6 +132,36 @@ bottleneck.
 
 ## Trusted sources
 
-- [Understanding LSTM Networks](https://colah.github.io/posts/2015-08-Understanding-LSTMs/) — Christopher Olah — the canonical, widely-cited visual explanation of LSTM cell state and gating.
-- [CS224N: Natural Language Processing with Deep Learning](https://web.stanford.edu/class/cs224n/) — Stanford — Lecture 4 covers vanishing gradients and LSTMs as the "fancy RNN" fix.
-- [Illustrated Guide to LSTM's and GRU's: A step by step explanation](https://towardsdatascience.com/illustrated-guide-to-lstms-and-gru-s-a-step-by-step-explanation-44e9eb85bf21) — Michael Phi — beginner-friendly walkthrough of gate mechanics.
+**Primary papers**
+- Hochreiter & Schmidhuber (1997) — [Long Short-Term Memory](https://www.bioinf.jku.at/publications/older/2604.pdf) — *Neural Computation* — the original LSTM paper; the gate equations in this lesson come directly from Section 3.
+- Bengio, Simard & Frasconi (1994) — [Learning Long-Term Dependencies with Gradient Descent is Difficult](http://www.iro.umontreal.ca/~lisa/pointeurs/ieeetrnn94.pdf) — *IEEE TNN* — the foundational analysis of why vanilla RNN gradients vanish.
+- Vaswani et al. (2017) — [Attention Is All You Need](https://arxiv.org/abs/1706.03762) — *NeurIPS* — Table 1 contains the $O(1)$ vs $O(N)$ path length comparison cited in this lesson.
+- Wu et al. (2016) — [Google's Neural Machine Translation System](https://arxiv.org/abs/1609.08144) — *arXiv* — the GNMT paper; the 8-layer encoder/decoder and attention details come from Section 3.
+- Sak, Senior, Rao & Beaufays (2015) — [Fast and Accurate Recurrent Neural Network Acoustic Models for Speech Recognition](https://arxiv.org/abs/1507.06947) — *INTERSPEECH* — the paper behind Google's 2015 switch to streaming LSTM speech recognition (Case 2).
+
+**Tutorials and course material**
+- [Understanding LSTM Networks](https://colah.github.io/posts/2015-08-Understanding-LSTMs/) — Christopher Olah — the canonical visual explanation of LSTM cell state and gating.
+- [CS224N: Natural Language Processing with Deep Learning](https://web.stanford.edu/class/cs224n/) — Stanford — Lecture 6 covers BPTT, vanishing gradients, and LSTMs with derivations.
+- Greff et al. (2017) — [LSTM: A Search Space Odyssey](https://arxiv.org/abs/1503.04069) — *IEEE TNNLS* — large-scale empirical study of which LSTM components actually matter.
+
+## System Design Case Studies
+
+To see how these abstract matrices translate into massive real-world systems, let's look at how two different engineering teams architected products around RNNs and LSTMs.
+
+### Case 1: Google Neural Machine Translation (GNMT, 2016)
+**The Problem:** Google Translate originally relied on Phrase-Based Machine Translation (PBMT), breaking sentences into independent chunks. This led to literal, robotic translations that ignored global sentence context.
+**The System Design:** Google replaced the entire PBMT stack with a massive Seq2Seq LSTM architecture. 
+- **The Encoder:** An 8-layer deep LSTM network ingested the source sentence word by word. The bottom layer was bi-directional (reading left-to-right and right-to-left simultaneously) to capture immediate context.
+- **The Decoder:** Another 8-layer LSTM generated the translation. 
+- **The Attention Fix:** Because the "context vector bottleneck" caused catastrophic forgetting on sentences longer than 30 words, GNMT introduced an Attention network sitting between the Encoder and Decoder. Instead of relying on a single vector, the Decoder could "look back" at the entire array of Encoder hidden states ($h_1, h_2, \dots, h_N$) at every generation step, calculating a weighted sum of the most relevant words.
+
+### Case 2: Google Voice Transcription — Replacing GMMs with Streaming LSTMs (2015)
+**The Problem:** Google's Voice Search used a Gaussian Mixture Model (GMM) acoustic model. GMMs score each 10ms audio frame independently — they have no memory and cannot model how the pronunciation of a phoneme depends on what came before. Recognition accuracy suffered, especially on natural, conversational speech.
+
+**Why an LSTM:** Audio is a variable-length, context-dependent sequence. The word "recognise" takes different durations depending on the speaker's pace and accent. An LSTM processes each 10ms audio frame as an input $x_t$, updating its cell state $C_t$ and hidden state $h_t$ to carry forward acoustic context across hundreds of frames — without fixing the sequence length in advance.
+
+**The streaming challenge:** For voice search, the model must produce partial transcriptions as the user speaks — it cannot wait until the sentence ends. Google solved this by running the LSTM causally (left-to-right only) and truncating BPTT to a fixed window during training, so the model could stream predictions in real time while remaining tractable to train.
+
+**The result:** Word Error Rate dropped significantly across Google's speech services. By August 2015, Google officially announced that their production voice transcription pipeline had been rebuilt on streaming LSTM RNNs — replacing GMMs that had been standard for over a decade.
+
+**Source:** Sak, Senior, Rao & Beaufays (2015), *Fast and Accurate Recurrent Neural Network Acoustic Models for Speech Recognition*, INTERSPEECH — [arXiv:1507.06947](https://arxiv.org/abs/1507.06947)
