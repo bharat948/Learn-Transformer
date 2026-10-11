@@ -12,6 +12,13 @@ dist-verify/
 .DS_Store
 Thumbs.db
 
+__pycache__/
+*.pyc
+jev-rlcd/__pycache__/
+jev-rlcd/tests/__pycache__/
+jev-rlcd/data/
+jev-rlcd/checkpoints/
+
 .vscode/*
 !.vscode/extensions.json
 .idea/
