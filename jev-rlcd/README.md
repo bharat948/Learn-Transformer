@@ -35,8 +35,9 @@ A standalone PyTorch framework implementing the **Joint Evaluation Vector (JEV)*
 python3 jev-rlcd/acquire_data.py
 python3 jev-rlcd/transform.py
 
-# 2. Pre-Train Model
+# 2. Pre-Train Model & Supervised Fine-Tuning
 python3 jev-rlcd/train_supervised.py
+python3 jev-rlcd/train_finetune.py
 
 # 3. RLCD Reinforcement Fine-Tuning
 python3 jev-rlcd/train_rlcd.py

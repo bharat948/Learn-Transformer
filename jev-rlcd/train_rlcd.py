@@ -38,7 +38,7 @@ def calculate_financial_reward(actions: torch.Tensor, forward_returns: torch.Ten
 
 def train_rlcd(
     dataset_path: str = "jev-rlcd/data/transformed_dataset.pt",
-    pretrained_checkpoint: str = "jev-rlcd/checkpoints/jev_pretrained.pt",
+    pretrained_checkpoint: str = "jev-rlcd/checkpoints/jev_finetuned.pt",
     rlcd_checkpoint: str = "jev-rlcd/checkpoints/jev_rlcd.pt",
     epochs: int = 25,
     lr: float = 3e-4,
